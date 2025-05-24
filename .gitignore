@@ -1,0 +1,42 @@
+# Maven build artifacts
+target/
+*.jar
+*.war
+*.ear
+
+# SQLite database
+conference_room.db
+
+# IDE files
+.idea/
+*.iml
+*.ipr
+*.iws
+.classpath
+.project
+.settings/
+.vscode/
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Dependency directories
+.m2/
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+*~
+
+# Local configuration files
+*.local
+*.properties.local
+
+# Compiled class files
+*.class
