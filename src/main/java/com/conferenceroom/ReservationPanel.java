@@ -240,8 +240,8 @@ public class ReservationPanel extends JPanel {
             // Check for overlapping reservations
             try (Connection conn = DatabaseManager.getConnection();
                  PreparedStatement stmt = conn.prepareStatement(
-                     "SELECT COUNT(*) FROM reservations WHERE room_id = ? AND " +
-                     "(start_time < ? AND end_time > ?) AND reservation_id != ?")) {
+                     "SELECT COUNT(*) FROM reservations r WHERE r.room_id = ? AND " +
+                     "(r.start_time < ? AND r.end_time > ?) AND r.reservation_id != ?")) {
                 stmt.setInt(1, roomId);
                 stmt.setString(2, end.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")));
                 stmt.setString(3, start.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")));

@@ -76,7 +76,7 @@ public class RoomsPanel extends JPanel {
             if (rs.next()) {
                 int roomId = rs.getInt("room_id");
                 double pricePerHour = rs.getDouble("price_per_hour");
-                app.showReservationPanel(roomId, roomName, pricePerHour, app.getCurrentUser(), null);
+                app.showReservationPanel(roomId, roomName, pricePerHour, app.getCurrentUser());
             }
         } catch (SQLException e) {
             JOptionPane.showMessageDialog(this, "Error selecting room: " + e.getMessage());

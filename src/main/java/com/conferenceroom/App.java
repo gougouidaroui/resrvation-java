@@ -94,10 +94,10 @@ public class App extends JFrame {
         mainPanel.repaint();
     }
 
-    public void showReservationPanel(int roomId, String roomName, double pricePerHour, User user, Integer reservationId) {
+    public void showReservationPanel(int roomId, String roomName, double pricePerHour, User user) {
         mainPanel.removeAll();
         mainPanel.setLayout(new BorderLayout());
-        mainPanel.add(new ReservationPanel(this, roomId, roomName, pricePerHour, user, reservationId), BorderLayout.CENTER);
+        mainPanel.add(new ReservationPanel(this, roomId, roomName, pricePerHour, user, null), BorderLayout.CENTER);
         mainPanel.revalidate();
         mainPanel.repaint();
     }
