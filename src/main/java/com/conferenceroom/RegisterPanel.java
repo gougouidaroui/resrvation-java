@@ -48,16 +48,8 @@ public class RegisterPanel extends JPanel {
         gbc.gridx = 1;
         add(confirmPasswordField, gbc);
 
-        gbc.gridx = 0;
+        gbc.gridx = 1;
         gbc.gridy = 4;
-        add(new JLabel("Role:"), gbc);
-        JComboBox<String> roleComboBox = new JComboBox<>(new String[]{"USER", "ADMIN"});
-        roleComboBox.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        gbc.gridx = 1;
-        add(roleComboBox, gbc);
-
-        gbc.gridx = 1;
-        gbc.gridy = 5;
         gbc.anchor = GridBagConstraints.EAST;
         JButton registerButton = new JButton("Register");
         registerButton.setBackground(new Color(0, 120, 215));
@@ -67,7 +59,6 @@ public class RegisterPanel extends JPanel {
             String username = usernameField.getText().trim();
             String password = new String(passwordField.getPassword());
             String confirmPassword = new String(confirmPasswordField.getPassword());
-            String role = (String) roleComboBox.getSelectedItem();
 
             if (username.isEmpty() || password.isEmpty()) {
                 JOptionPane.showMessageDialog(this, "Username and password are required.");
@@ -78,7 +69,7 @@ public class RegisterPanel extends JPanel {
                 return;
             }
 
-            if (AuthService.register(username, password, role)) {
+            if (AuthService.register(username, password, "USER")) {
                 JOptionPane.showMessageDialog(this, "Registration successful!");
                 app.showLoginPanel();
             } else {
@@ -88,7 +79,7 @@ public class RegisterPanel extends JPanel {
         add(registerButton, gbc);
 
         gbc.gridx = 0;
-        gbc.gridy = 6;
+        gbc.gridy = 5;
         gbc.gridwidth = 2;
         gbc.anchor = GridBagConstraints.CENTER;
         JButton backButton = new JButton("Back to Login");

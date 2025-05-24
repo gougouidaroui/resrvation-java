@@ -122,16 +122,29 @@ public class ReservationPanel extends JPanel {
         equipmentScroll.setPreferredSize(new Dimension(200, 60));
         add(equipmentScroll, gbc);
 
-        // Reserve/Update button
-        gbc.gridx = 1;
+        // Button panel for Reserve and Return
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        buttonPanel.setBackground(new Color(245, 245, 245));
+
+        JButton returnButton = new JButton("Return");
+        returnButton.setBackground(new Color(108, 117, 125));
+        returnButton.setForeground(Color.WHITE);
+        returnButton.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        returnButton.addActionListener(e -> app.showMainPanel(user));
+        buttonPanel.add(returnButton);
+
+        JButton reserveButton = new JButton("Reserve");
+        reserveButton.setBackground(new Color(0, 120, 215));
+        reserveButton.setForeground(Color.WHITE);
+        reserveButton.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        reserveButton.addActionListener(e -> saveReservation());
+        buttonPanel.add(reserveButton);
+
+        gbc.gridx = 0;
         gbc.gridy = 7;
+        gbc.gridwidth = 2;
         gbc.anchor = GridBagConstraints.EAST;
-        JButton actionButton = new JButton(reservationId == null ? "Reserve" : "Update");
-        actionButton.setBackground(new Color(0, 120, 215));
-        actionButton.setForeground(Color.WHITE);
-        actionButton.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        actionButton.addActionListener(e -> saveReservation());
-        add(actionButton, gbc);
+        add(buttonPanel, gbc);
 
         // Load existing reservation data if editing
         if (reservationId != null) {
