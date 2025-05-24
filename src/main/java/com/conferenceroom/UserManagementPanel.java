@@ -4,7 +4,6 @@ import com.conferenceroom.database.DatabaseManager;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
-import java.awt.event.*;
 import java.sql.*;
 
 public class UserManagementPanel extends JPanel {
@@ -14,21 +13,29 @@ public class UserManagementPanel extends JPanel {
     public UserManagementPanel() {
         setLayout(new BorderLayout());
         setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        setBackground(new Color(245, 245, 245));
 
         String[] columns = {"Username", "Role"};
         tableModel = new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
-                return false; // Make all cells non-editable
+                return false;
             }
         };
         table = new JTable(tableModel);
+        table.setRowHeight(25);
+        table.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        table.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 12));
         loadUsers();
 
         add(new JScrollPane(table), BorderLayout.CENTER);
 
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        buttonPanel.setBackground(new Color(245, 245, 245));
         JButton deleteButton = new JButton("Delete Selected");
+        deleteButton.setBackground(new Color(220, 53, 69));
+        deleteButton.setForeground(Color.WHITE);
+        deleteButton.setFont(new Font("Segoe UI", Font.BOLD, 12));
         deleteButton.addActionListener(e -> deleteUser());
         buttonPanel.add(deleteButton);
 
@@ -70,13 +77,10 @@ public class UserManagementPanel extends JPanel {
         }
 
         try (Connection conn = DatabaseManager.getConnection()) {
-            // Delete user's reservations
             try (PreparedStatement stmt = conn.prepareStatement("DELETE FROM reservations WHERE username = ?")) {
                 stmt.setString(1, username);
                 stmt.executeUpdate();
             }
-
-            // Delete user
             try (PreparedStatement stmt = conn.prepareStatement("DELETE FROM users WHERE username = ?")) {
                 stmt.setString(1, username);
                 int rows = stmt.executeUpdate();

@@ -8,35 +8,61 @@ import com.itextpdf.layout.element.Paragraph;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
-import java.awt.event.*;
 import java.io.File;
 import java.sql.*;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
 
 public class ViewReservationsPanel extends JPanel {
     private JTable table;
     private DefaultTableModel tableModel;
     private final User user;
+    private final App app;
 
-    public ViewReservationsPanel(User user) {
+    public ViewReservationsPanel(App app, User user) {
+        this.app = app;
         this.user = user;
         setLayout(new BorderLayout());
         setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        setBackground(new Color(245, 245, 245));
 
         String[] columns = {"ID", "Room", "Username", "Start Time", "End Time", "Equipment", "Total Cost"};
-        tableModel = new DefaultTableModel(columns, 0);
+        tableModel = new DefaultTableModel(columns, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
         table = new JTable(tableModel);
+        table.setRowHeight(25);
+        table.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        table.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 12));
         loadReservations();
 
         add(new JScrollPane(table), BorderLayout.CENTER);
 
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        buttonPanel.setBackground(new Color(245, 245, 245));
+        JButton modifyButton = new JButton("Modify Selected");
+        modifyButton.setBackground(new Color(0, 120, 215));
+        modifyButton.setForeground(Color.WHITE);
+        modifyButton.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        modifyButton.addActionListener(e -> modifyReservation());
+        buttonPanel.add(modifyButton);
+
         JButton cancelButton = new JButton(user.isAdmin() ? "Delete Selected" : "Cancel Selected");
+        cancelButton.setBackground(new Color(220, 53, 69));
+        cancelButton.setForeground(Color.WHITE);
+        cancelButton.setFont(new Font("Segoe UI", Font.BOLD, 12));
         cancelButton.addActionListener(e -> deleteReservation());
         buttonPanel.add(cancelButton);
 
         JButton downloadButton = new JButton("Download PDF");
+        downloadButton.setBackground(new Color(40, 167, 69));
+        downloadButton.setForeground(Color.WHITE);
+        downloadButton.setFont(new Font("Segoe UI", Font.BOLD, 12));
         downloadButton.addActionListener(e -> downloadReservationPDF());
         buttonPanel.add(downloadButton);
 
@@ -48,27 +74,75 @@ public class ViewReservationsPanel extends JPanel {
         try (Connection conn = DatabaseManager.getConnection();
              PreparedStatement stmt = conn.prepareStatement(
                  user.isAdmin()
-                     ? "SELECT r.reservation_id, rm.name, r.username, r.start_time, r.end_time, r.has_equipment, r.total_cost " +
+                     ? "SELECT r.reservation_id, rm.name, r.username, r.start_time, r.end_time, r.total_cost " +
                        "FROM reservations r JOIN rooms rm ON r.room_id = rm.room_id"
-                     : "SELECT r.reservation_id, rm.name, r.username, r.start_time, r.end_time, r.has_equipment, r.total_cost " +
+                     : "SELECT r.reservation_id, rm.name, r.username, r.start_time, r.end_time, r.total_cost " +
                        "FROM reservations r JOIN rooms rm ON r.room_id = rm.room_id WHERE r.username = ?")) {
             if (!user.isAdmin()) {
                 stmt.setString(1, user.getUsername());
             }
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
+                int reservationId = rs.getInt("reservation_id");
+                String equipment = getReservationEquipment(reservationId);
                 tableModel.addRow(new Object[]{
-                    rs.getInt("reservation_id"),
+                    reservationId,
                     rs.getString("name"),
                     rs.getString("username"),
                     rs.getString("start_time"),
                     rs.getString("end_time"),
-                    rs.getInt("has_equipment") == 1 ? "Yes" : "No",
+                    equipment,
                     String.format("%.2f", rs.getDouble("total_cost"))
                 });
             }
         } catch (SQLException e) {
             JOptionPane.showMessageDialog(this, "Error loading reservations: " + e.getMessage());
+        }
+    }
+
+    private String getReservationEquipment(int reservationId) {
+        try (Connection conn = DatabaseManager.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(
+                 "SELECT e.name FROM equipment e JOIN reservation_equipment re ON e.equipment_id = re.equipment_id WHERE re.reservation_id = ?")) {
+            stmt.setInt(1, reservationId);
+            ResultSet rs = stmt.executeQuery();
+            List<String> equipment = new ArrayList<>();
+            while (rs.next()) {
+                equipment.add(rs.getString("name"));
+            }
+            return equipment.isEmpty() ? "None" : String.join(", ", equipment);
+        } catch (SQLException e) {
+            return "Error";
+        }
+    }
+
+    private void modifyReservation() {
+        int selectedRow = table.getSelectedRow();
+        if (selectedRow == -1) {
+            JOptionPane.showMessageDialog(this, "Please select a reservation to modify.");
+            return;
+        }
+
+        int reservationId = (int) tableModel.getValueAt(selectedRow, 0);
+        String reservationUsername = (String) tableModel.getValueAt(selectedRow, 2);
+
+        if (!user.isAdmin() && !user.getUsername().equals(reservationUsername)) {
+            JOptionPane.showMessageDialog(this, "You can only modify your own reservations.");
+            return;
+        }
+
+        try (Connection conn = DatabaseManager.getConnection();
+             PreparedStatement stmt = conn.prepareStatement("SELECT room_id, rm.name, rm.price_per_hour FROM reservations r JOIN rooms rm ON r.room_id = rm.room_id WHERE r.reservation_id = ?")) {
+            stmt.setInt(1, reservationId);
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                int roomId = rs.getInt("room_id");
+                String roomName = rs.getString("name");
+                double pricePerHour = rs.getDouble("price_per_hour");
+                app.showReservationPanel(roomId, roomName, pricePerHour, user, reservationId);
+            }
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(this, "Error loading reservation: " + e.getMessage());
         }
     }
 
@@ -135,13 +209,13 @@ public class ViewReservationsPanel extends JPanel {
             PdfDocument pdf = new PdfDocument(writer);
             Document document = new Document(pdf);
 
-            document.add(new Paragraph("Conference Room Reservation"));
+            document.add(new Paragraph("Conference Room Reservation").setBold().setFontSize(16));
             document.add(new Paragraph("Reservation ID: " + reservationId));
             document.add(new Paragraph("Room: " + roomName));
             document.add(new Paragraph("User: " + username));
             document.add(new Paragraph("Start Time: " + startTime));
             document.add(new Paragraph("End Time: " + endTime));
-            document.add(new Paragraph("Equipment Included: " + equipment));
+            document.add(new Paragraph("Equipment: " + equipment));
             document.add(new Paragraph("Total Cost: $" + String.format("%.2f", totalCost)));
             document.add(new Paragraph("Generated on: " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))));
 

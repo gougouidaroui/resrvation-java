@@ -5,7 +5,7 @@ import org.mindrot.jbcrypt.BCrypt;
 import java.sql.*;
 
 public class AuthService {
-    public static User login(String username, String password) throws SQLException {
+    public static User login(String username, String password) {
         try (Connection conn = DatabaseManager.getConnection();
              PreparedStatement stmt = conn.prepareStatement("SELECT password, role FROM users WHERE username = ?")) {
             stmt.setString(1, username);
@@ -16,28 +16,26 @@ public class AuthService {
                     return new User(username, rs.getString("role"));
                 }
             }
-            return null;
+        } catch (SQLException e) {
+            System.err.println("Login error: " + e.getMessage());
         }
+        return null;
     }
 
-    public static boolean registerUser(String username, String password) throws SQLException {
-        // Check if username exists
-        try (Connection conn = DatabaseManager.getConnection();
-             PreparedStatement stmt = conn.prepareStatement("SELECT username FROM users WHERE username = ?")) {
-            stmt.setString(1, username);
-            if (stmt.executeQuery().next()) {
-                return false; // Username already taken
-            }
+    public static boolean register(String username, String password, String role) {
+        if (!role.equals("USER") && !role.equals("ADMIN")) {
+            return false;
         }
-
-        // Register new user with USER role
         String hashedPassword = BCrypt.hashpw(password, BCrypt.gensalt());
         try (Connection conn = DatabaseManager.getConnection();
-             PreparedStatement stmt = conn.prepareStatement("INSERT INTO users (username, password, role) VALUES (?, ?, 'USER')")) {
+             PreparedStatement stmt = conn.prepareStatement("INSERT INTO users (username, password, role) VALUES (?, ?, ?)")) {
             stmt.setString(1, username);
             stmt.setString(2, hashedPassword);
-            stmt.executeUpdate();
-            return true;
+            stmt.setString(3, role);
+            return stmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            System.err.println("Registration error: " + e.getMessage());
+            return false;
         }
     }
 }

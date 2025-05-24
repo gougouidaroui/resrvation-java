@@ -4,94 +4,84 @@ import org.mindrot.jbcrypt.BCrypt;
 import java.sql.*;
 
 public class DatabaseManager {
-    private static final String DB_URL = "jdbc:sqlite:conference_room.db";
-
-    static {
-        try {
-            Class.forName("org.sqlite.JDBC");
-        } catch (ClassNotFoundException e) {
-            System.err.println("SQLite JDBC driver not found: " + e.getMessage());
-        }
-    }
+    private static final String URL = "jdbc:sqlite:conference_room.db";
 
     public static Connection getConnection() throws SQLException {
-        Connection conn = DriverManager.getConnection(DB_URL);
-        conn.createStatement().execute("PRAGMA foreign_keys = ON;");
-        return conn;
+        return DriverManager.getConnection(URL);
     }
 
     public static void initializeDatabase() {
-        try (Connection conn = getConnection(); Statement stmt = conn.createStatement()) {
+        try (Connection conn = getConnection();
+             Statement stmt = conn.createStatement()) {
             // Create rooms table
-            String createRoomsTable = """
-                CREATE TABLE IF NOT EXISTS rooms (
-                    room_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name TEXT NOT NULL UNIQUE,
-                    capacity INTEGER NOT NULL,
-                    location TEXT NOT NULL,
-                    price_per_hour REAL NOT NULL
-                )""";
-            stmt.execute(createRoomsTable);
+            stmt.execute("CREATE TABLE IF NOT EXISTS rooms (" +
+                         "room_id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                         "name TEXT NOT NULL UNIQUE, " +
+                         "capacity INTEGER NOT NULL, " +
+                         "location TEXT NOT NULL, " +
+                         "price_per_hour REAL NOT NULL)");
 
-            // Migrate old rooms table if it exists with room_name or image_url
-            try (ResultSet rs = conn.getMetaData().getColumns(null, null, "rooms", "room_name")) {
-                if (rs.next()) {
-                    stmt.execute("ALTER TABLE rooms RENAME COLUMN room_name TO name");
-                    stmt.execute("ALTER TABLE rooms ADD COLUMN location TEXT NOT NULL DEFAULT 'Unknown'");
-                    stmt.execute("ALTER TABLE rooms ADD COLUMN price_per_hour REAL NOT NULL DEFAULT 50.0");
-                }
-            }
-            try (ResultSet rs = conn.getMetaData().getColumns(null, null, "rooms", "image_url")) {
-                if (rs.next()) {
-                    stmt.execute("ALTER TABLE rooms DROP COLUMN image_url");
-                }
-            }
+            // Create equipment table
+            stmt.execute("CREATE TABLE IF NOT EXISTS equipment (" +
+                         "equipment_id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                         "name TEXT NOT NULL UNIQUE, " +
+                         "cost REAL NOT NULL)");
+
+            // Create room_equipment table
+            stmt.execute("CREATE TABLE IF NOT EXISTS room_equipment (" +
+                         "room_id INTEGER, " +
+                         "equipment_id INTEGER, " +
+                         "PRIMARY KEY (room_id, equipment_id), " +
+                         "FOREIGN KEY (room_id) REFERENCES rooms(room_id) ON DELETE CASCADE, " +
+                         "FOREIGN KEY (equipment_id) REFERENCES equipment(equipment_id) ON DELETE CASCADE)");
 
             // Create users table
-            String createUsersTable = """
-                CREATE TABLE IF NOT EXISTS users (
-                    username TEXT PRIMARY KEY,
-                    password TEXT NOT NULL,
-                    role TEXT NOT NULL CHECK(role IN ('ADMIN', 'USER'))
-                )""";
-            stmt.execute(createUsersTable);
+            stmt.execute("CREATE TABLE IF NOT EXISTS users (" +
+                         "username TEXT PRIMARY KEY, " +
+                         "password TEXT NOT NULL, " +
+                         "role TEXT NOT NULL)");
 
-            // Drop and recreate reservations table to ensure fresh schema
-            stmt.execute("DROP TABLE IF EXISTS reservations");
-            String createReservationsTable = """
-                CREATE TABLE IF NOT EXISTS reservations (
-                    reservation_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    username TEXT NOT NULL,
-                    room_id INTEGER NOT NULL,
-                    start_time TEXT NOT NULL,
-                    end_time TEXT NOT NULL,
-                    has_equipment INTEGER NOT NULL CHECK(has_equipment IN (0, 1)),
-                    total_cost REAL NOT NULL,
-                    FOREIGN KEY (username) REFERENCES users (username) ON DELETE CASCADE,
-                    FOREIGN KEY (room_id) REFERENCES rooms (room_id) ON DELETE CASCADE
-                )""";
-            stmt.execute(createReservationsTable);
+            // Create reservations table
+            stmt.execute("CREATE TABLE IF NOT EXISTS reservations (" +
+                         "reservation_id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                         "username TEXT NOT NULL, " +
+                         "room_id INTEGER NOT NULL, " +
+                         "start_time TEXT NOT NULL, " +
+                         "end_time TEXT NOT NULL, " +
+                         "total_cost REAL NOT NULL, " +
+                         "FOREIGN KEY (username) REFERENCES users(username) ON DELETE CASCADE, " +
+                         "FOREIGN KEY (room_id) REFERENCES rooms(room_id) ON DELETE CASCADE)");
 
-            // Insert sample rooms
-            String insertRooms = """
-                INSERT OR IGNORE INTO rooms (name, capacity, location, price_per_hour) VALUES
-                ('Conference Room A', 10, 'Building 1, Floor 2', 50.0),
-                ('Board Room B', 20, 'Building 2, Floor 1', 75.0),
-                ('Meeting Room C', 15, 'Building 1, Floor 3', 60.0)""";
-            stmt.execute(insertRooms);
+            // Create reservation_equipment table
+            stmt.execute("CREATE TABLE IF NOT EXISTS reservation_equipment (" +
+                         "reservation_id INTEGER, " +
+                         "equipment_id INTEGER, " +
+                         "PRIMARY KEY (reservation_id, equipment_id), " +
+                         "FOREIGN KEY (reservation_id) REFERENCES reservations(reservation_id) ON DELETE CASCADE, " +
+                         "FOREIGN KEY (equipment_id) REFERENCES equipment(equipment_id) ON DELETE CASCADE)");
 
-            // Insert default admin user
-            String hashedPassword = BCrypt.hashpw("admin", BCrypt.gensalt());
-            String insertAdmin = """
-                INSERT OR IGNORE INTO users (username, password, role) VALUES
-                ('admin', ?, 'ADMIN')""";
-            try (PreparedStatement pstmt = conn.prepareStatement(insertAdmin)) {
-                pstmt.setString(1, hashedPassword);
-                pstmt.executeUpdate();
-            }
+            // Insert sample data
+            stmt.execute("INSERT OR IGNORE INTO users (username, password, role) VALUES " +
+                         "('admin', '" + BCrypt.hashpw("admin", BCrypt.gensalt()) + "', 'ADMIN'), " +
+                         "('user1', '" + BCrypt.hashpw("pass123", BCrypt.gensalt()) + "', 'USER')");
+
+            stmt.execute("INSERT OR IGNORE INTO rooms (name, capacity, location, price_per_hour) VALUES " +
+                         "('Board Room B', 12, 'Building 1, Floor 2', 50.0), " +
+                         "('Conference Room A', 8, 'Building 2, Floor 1', 40.0), " +
+                         "('Training Room C', 20, 'Building 3, Floor 3', 60.0)");
+
+            stmt.execute("INSERT OR IGNORE INTO equipment (name, cost) VALUES " +
+                         "('Projector', 20.0), " +
+                         "('Conference Phone', 15.0), " +
+                         "('Whiteboard', 10.0), " +
+                         "('Laptop', 30.0)");
+
+            stmt.execute("INSERT OR IGNORE INTO room_equipment (room_id, equipment_id) VALUES " +
+                         "((SELECT room_id FROM rooms WHERE name = 'Board Room B'), (SELECT equipment_id FROM equipment WHERE name = 'Projector')), " +
+                         "((SELECT room_id FROM rooms WHERE name = 'Board Room B'), (SELECT equipment_id FROM equipment WHERE name = 'Conference Phone')), " +
+                         "((SELECT room_id FROM rooms WHERE name = 'Conference Room A'), (SELECT equipment_id FROM equipment WHERE name = 'Whiteboard'))");
         } catch (SQLException e) {
-            System.err.println("Error initializing database: " + e.getMessage());
-            e.printStackTrace();
+            System.err.println("Database initialization error: " + e.getMessage());
         }
     }
 }

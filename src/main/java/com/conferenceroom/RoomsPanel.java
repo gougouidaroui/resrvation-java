@@ -15,23 +15,32 @@ public class RoomsPanel extends JPanel {
         this.app = app;
         setLayout(new BorderLayout());
         setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        setBackground(new Color(245, 245, 245));
 
-        // Table setup
         String[] columns = {"Name", "Capacity", "Location", "Price/Hour"};
         tableModel = new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
-                return false; // Make all cells non-editable
+                return false;
             }
         };
         table = new JTable(tableModel);
+        table.setRowHeight(25);
+        table.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        table.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 12));
         loadRooms();
 
         add(new JScrollPane(table), BorderLayout.CENTER);
 
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        buttonPanel.setBackground(new Color(245, 245, 245));
         JButton reserveButton = new JButton("Reserve Selected Room");
+        reserveButton.setBackground(new Color(0, 120, 215));
+        reserveButton.setForeground(Color.WHITE);
+        reserveButton.setFont(new Font("Segoe UI", Font.BOLD, 12));
         reserveButton.addActionListener(e -> reserveRoom());
-        add(reserveButton, BorderLayout.SOUTH);
+        buttonPanel.add(reserveButton);
+        add(buttonPanel, BorderLayout.SOUTH);
     }
 
     private void loadRooms() {
@@ -67,7 +76,7 @@ public class RoomsPanel extends JPanel {
             if (rs.next()) {
                 int roomId = rs.getInt("room_id");
                 double pricePerHour = rs.getDouble("price_per_hour");
-                app.showReservationPanel(roomId, roomName, pricePerHour);
+                app.showReservationPanel(roomId, roomName, pricePerHour, app.getCurrentUser(), null);
             }
         } catch (SQLException e) {
             JOptionPane.showMessageDialog(this, "Error selecting room: " + e.getMessage());
