@@ -42,6 +42,7 @@ public class App extends JFrame {
         tabbedPane.addTab("Reservations", new ViewReservationsPanel(user));
         if (user.isAdmin()) {
             tabbedPane.addTab("User Management", new UserManagementPanel());
+            tabbedPane.addTab("Room Management", new RoomManagementPanel());
         }
         tabbedPane.setSelectedIndex(0); // Select Rooms tab
 

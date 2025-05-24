@@ -29,18 +29,21 @@ public class DatabaseManager {
                     name TEXT NOT NULL UNIQUE,
                     capacity INTEGER NOT NULL,
                     location TEXT NOT NULL,
-                    image_url TEXT,
                     price_per_hour REAL NOT NULL
                 )""";
             stmt.execute(createRoomsTable);
 
-            // Migrate old rooms table if it exists with room_name
+            // Migrate old rooms table if it exists with room_name or image_url
             try (ResultSet rs = conn.getMetaData().getColumns(null, null, "rooms", "room_name")) {
                 if (rs.next()) {
                     stmt.execute("ALTER TABLE rooms RENAME COLUMN room_name TO name");
                     stmt.execute("ALTER TABLE rooms ADD COLUMN location TEXT NOT NULL DEFAULT 'Unknown'");
-                    stmt.execute("ALTER TABLE rooms ADD COLUMN image_url TEXT");
                     stmt.execute("ALTER TABLE rooms ADD COLUMN price_per_hour REAL NOT NULL DEFAULT 50.0");
+                }
+            }
+            try (ResultSet rs = conn.getMetaData().getColumns(null, null, "rooms", "image_url")) {
+                if (rs.next()) {
+                    stmt.execute("ALTER TABLE rooms DROP COLUMN image_url");
                 }
             }
 
@@ -65,16 +68,16 @@ public class DatabaseManager {
                     has_equipment INTEGER NOT NULL CHECK(has_equipment IN (0, 1)),
                     total_cost REAL NOT NULL,
                     FOREIGN KEY (username) REFERENCES users (username) ON DELETE CASCADE,
-                    FOREIGN KEY (room_id) REFERENCES rooms (room_id)
+                    FOREIGN KEY (room_id) REFERENCES rooms (room_id) ON DELETE CASCADE
                 )""";
             stmt.execute(createReservationsTable);
 
             // Insert sample rooms
             String insertRooms = """
-                INSERT OR IGNORE INTO rooms (name, capacity, location, image_url, price_per_hour) VALUES
-                ('Conference Room A', 10, 'Building 1, Floor 2', 'https://example.com/room_a.jpg', 50.0),
-                ('Board Room B', 20, 'Building 2, Floor 1', 'https://example.com/room_b.jpg', 75.0),
-                ('Meeting Room C', 15, 'Building 1, Floor 3', 'https://example.com/room_c.jpg', 60.0)""";
+                INSERT OR IGNORE INTO rooms (name, capacity, location, price_per_hour) VALUES
+                ('Conference Room A', 10, 'Building 1, Floor 2', 50.0),
+                ('Board Room B', 20, 'Building 2, Floor 1', 75.0),
+                ('Meeting Room C', 15, 'Building 1, Floor 3', 60.0)""";
             stmt.execute(insertRooms);
 
             // Insert default admin user
